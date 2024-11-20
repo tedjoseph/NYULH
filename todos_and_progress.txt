@@ -1,0 +1,8 @@
+Last Modified: 7/30/24 
+
+Issues:
+Cannot properly handle middle names in the on_duty_staff file.
+Error handling missing on improper time formats on input file.
+
+
+Next Steps - 

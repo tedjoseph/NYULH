@@ -1,0 +1,24 @@
+Benson, Selina
+Crombie, Peter
+Dayan, Roberta
+Nimblette, Jason
+Hill, Kris
+Banarsi, Jenica
+Hernandez, Jessica 
+Meza, Jessica
+Mignano, Joseph
+Batista, Alexandra
+Salazar, Juan
+Joseph, Tedlyn
+Espinola, Melissa
+Groser, Lauren
+Lisondra, Mhariz
+Ortiz, Marylu
+Stanton, Kristina
+
+Get length of shift and calculate amount of break.
+
+15mins per 2 hours.
+
+how would we modify an existing schedule? i.e., 
+handle shifting during call outs.
