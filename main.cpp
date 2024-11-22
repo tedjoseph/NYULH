@@ -1,6 +1,5 @@
 /*
  * Copyright (C) Tedlyn Joseph, 2024
- * Do not distribute without authorized permission
  */
 
 #include <iostream>
