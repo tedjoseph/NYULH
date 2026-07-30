@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concierge Seating Scheduler</title>
+<style>
+  :root{
+    --bg:#EEF1F5;
+    --panel:#FFFFFF;
+    --ink:#182233;
+    --ink-soft:#5B6474;
+    --line:#DDE2EA;
+    --navy:#101B29;
+    --navy-2:#1B2A3E;
+    --accent:#2F6FED;
+    --accent-ink:#FFFFFF;
+    --tier1:#C4453A;
+    --tier1-bg:#FBEAE8;
+    --tier2:#2F6FED;
+    --tier2-bg:#EAF0FE;
+    --tier3:#1C8C86;
+    --tier3-bg:#E7F5F3;
+    --tier4:#7A8194;
+    --tier4-bg:#F1F2F5;
+    --warn:#B9770E;
+    --warn-bg:#FCF2DF;
+    --crit:#B3261E;
+    --crit-bg:#FBEAE9;
+    --good:#1C7A4D;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    --sans: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --radius: 10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+    line-height:1.45;
+  }
+  header.top{
+    background:linear-gradient(180deg, var(--navy), var(--navy-2));
+    color:#fff; padding:22px 28px 20px;
+  }
+  header.top .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:#8FA3C7; margin:0 0 6px;
+  }
+  header.top h1{margin:0; font-size:22px; font-weight:650; letter-spacing:-0.01em;}
+  header.top p{margin:6px 0 0; color:#B9C4D6; font-size:13.5px; max-width:640px;}
+
+  main{max-width:1080px; margin:0 auto; padding:22px 20px 60px;}
+
+  .panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px 22px; margin-bottom:18px;
+  }
+  .panel h2{
+    margin:0 0 4px; font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px;
+  }
+  .panel h2 .num{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:20px; height:20px; border-radius:50%; background:var(--navy); color:#fff;
+    font-family:var(--mono); font-size:11px; font-weight:600;
+  }
+  .panel .sub{color:var(--ink-soft); font-size:13px; margin:0 0 14px;}
+
+  textarea{
+    width:100%; min-height:190px; font-family:var(--mono); font-size:13px;
+    border:1px solid var(--line); border-radius:8px; padding:12px 14px; resize:vertical;
+    background:#FBFCFE; color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--accent); outline-offset:1px;}
+
+  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px;}
+  button{
+    font-family:var(--sans); font-size:13.5px; font-weight:600; cursor:pointer;
+    border-radius:8px; padding:9px 16px; border:1px solid transparent;
+  }
+  button:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  .btn-primary{background:var(--accent); color:#fff;}
+  .btn-primary:hover{background:#245ED1;}
+  .btn-secondary{background:#fff; color:var(--ink); border-color:var(--line);}
+  .btn-secondary:hover{background:#F4F6F9;}
+  .btn-ghost{background:transparent; color:var(--accent); border:none; padding:9px 4px;}
+  .file-label{
+    display:inline-flex; align-items:center; gap:6px; background:#fff; color:var(--ink);
+    border:1px solid var(--line); border-radius:8px; padding:9px 16px; cursor:pointer; font-weight:600; font-size:13.5px;
+  }
+  .file-label:hover{background:#F4F6F9;}
+  input[type=file]{display:none;}
+
+  .error-banner{
+    background:var(--crit-bg); border:1px solid #F0C6C3; color:var(--crit);
+    border-radius:8px; padding:12px 14px; margin-top:12px; font-size:13.5px;
+  }
+  .error-banner .code{font-family:var(--mono); font-weight:700;}
+  .error-banner .line{font-family:var(--mono); background:#fff; border:1px solid #F0C6C3; border-radius:5px; padding:1px 6px; margin-top:6px; display:inline-block;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--ink-soft); padding:8px 10px; border-bottom:1px solid var(--line);
+  }
+  td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  .mono{font-family:var(--mono);}
+  .call-out-row{opacity:.45;}
+
+  .chip{
+    display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;
+  }
+  .tier1 .chip, .chip-tier1{background:var(--tier1-bg); color:var(--tier1);}
+  .tier2 .chip, .chip-tier2{background:var(--tier2-bg); color:var(--tier2);}
+  .tier3 .chip, .chip-tier3{background:var(--tier3-bg); color:var(--tier3);}
+  .tier4 .chip, .chip-tier4{background:var(--tier4-bg); color:var(--tier4);}
+
+  /* --- board --- */
+  .board-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:8px;}
+  .board{border-collapse:collapse; min-width:720px; font-size:12.5px;}
+  .board th, .board td{border:1px solid var(--line); padding:0;}
+  .board thead th{
+    background:var(--navy); color:#fff; font-family:var(--mono); font-weight:600;
+    font-size:11px; padding:8px 6px; text-align:center; white-space:nowrap;
+  }
+  .board thead th:first-child{text-align:left; padding-left:12px;}
+  .post-cell{
+    text-align:left; padding:9px 12px !important; font-weight:700; font-size:13px;
+    white-space:nowrap; background:#FAFBFD;
+  }
+  .post-cell .tierlabel{display:block; font-weight:500; font-size:10.5px; color:var(--ink-soft); text-transform:none;}
+  .assign-cell{text-align:center; padding:8px 4px !important; font-size:12.5px; position:relative;}
+  .assign-cell.filled-1{background:var(--tier1-bg); color:var(--tier1); font-weight:700;}
+  .assign-cell.filled-2{background:var(--tier2-bg); color:var(--tier2); font-weight:700;}
+  .assign-cell.filled-3{background:var(--tier3-bg); color:var(--tier3); font-weight:600;}
+  .assign-cell.filled-4{background:var(--tier4-bg); color:var(--tier4); font-weight:600;}
+  .assign-cell.empty{background:repeating-linear-gradient(45deg,#fff,#fff 5px,#F4F5F7 5px,#F4F5F7 10px); color:#C3C8D1;}
+  .assign-cell.empty-crit{background:var(--crit-bg); color:var(--crit); font-weight:700;}
+  .break-row td{background:#FDF9F0; font-style:italic; color:var(--warn); font-size:11.5px; text-align:left; padding:6px 12px !important;}
+
+  .legend{display:flex; gap:16px; flex-wrap:wrap; margin:12px 2px 0; font-size:12px; color:var(--ink-soft);}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .legend i{width:11px; height:11px; border-radius:3px; display:inline-block;}
+
+  .warn-item, .notice-item{
+    border-radius:7px; padding:9px 12px; font-size:13px; margin-bottom:6px; display:flex; gap:10px;
+  }
+  .warn-item{background:var(--crit-bg); color:var(--crit); border:1px solid #F0C6C3;}
+  .notice-item{background:var(--warn-bg); color:var(--warn); border:1px solid #F1DFB0;}
+  .warn-item .time, .notice-item .time{font-family:var(--mono); font-weight:700; white-space:nowrap;}
+  .good-note{background:#EAF6EF; color:var(--good); border:1px solid #C9E9D5; border-radius:7px; padding:9px 12px; font-size:13px;}
+
+  .emp-card{border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;}
+  .emp-card .name{font-weight:700; font-size:13.5px;}
+  .emp-card .shift{font-family:var(--mono); font-size:11.5px; color:var(--ink-soft);}
+  .emp-card .posts{display:flex; gap:6px; flex-wrap:wrap;}
+  .emp-card .breaktext{font-size:11.5px; color:var(--ink-soft); font-family:var(--mono);}
+
+  footer{max-width:1080px; margin:0 auto; padding:0 20px 40px; color:var(--ink-soft); font-size:12px;}
+  .hidden{display:none !important;}
+  #sampleNote{font-size:12px; color:var(--ink-soft);}
+
+  @media print{
+    header.top, .panel.controls, .no-print{display:none !important;}
+    body{background:#fff;}
+    .panel{border:none; padding:0; margin-bottom:24px;}
+  }
+
+  details summary::-webkit-details-marker{display:none;}
+  .settings-grid{display:flex; flex-direction:column; gap:10px; margin-top:10px; font-size:13.5px;}
+  .settings-grid label{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .settings-grid input[type=number]{
+    width:56px; padding:5px 7px; border:1px solid var(--line); border-radius:6px;
+    font-family:var(--mono); font-size:13px;
+  }
+
+  .sheet-fields{display:flex; gap:18px; flex-wrap:wrap; margin-bottom:16px; font-size:13px; color:var(--ink-soft);}
+  .sheet-fields label{display:flex; flex-direction:column; gap:4px; font-weight:600;}
+  .sheet-fields input{
+    padding:7px 10px; border:1px solid var(--line); border-radius:6px; font-family:var(--sans);
+    font-size:13px; color:var(--ink); font-weight:500; min-width:180px;
+  }
+  .sheet-doc{border:1px solid var(--line); border-radius:8px; padding:18px 20px; background:#fff;}
+  .sheet-doc .sheet-title{font-weight:700; font-size:16px; margin:0 0 12px;}
+  .sheet-doc .sheet-meta{font-size:13px; color:var(--ink-soft); margin:0 0 3px;}
+  .sheet-doc .sheet-meta b{color:var(--ink); font-weight:700;}
+  .sheet-table{margin-top:14px; width:100%; border-collapse:collapse;}
+  .sheet-table th{background:#F4F6F9; border:1px solid var(--line); padding:7px 10px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); text-align:left;}
+  .sheet-table td{border:1px solid var(--line); padding:7px 10px; font-size:13px;}
+  .sheet-table td.sname{font-weight:700; white-space:nowrap;}
+  .sheet-table td.sshift, .sheet-table td.sbreak{font-family:var(--mono); white-space:nowrap; color:var(--ink-soft); font-size:12.5px;}
+  .sheet-footnote{margin-top:14px; color:var(--warn); font-weight:700; font-size:13px; text-align:center;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <p class="eyebrow">Hospital Concierge · Staffing Tool</p>
+  <h1>Concierge Seating Scheduler</h1>
+  <p>Paste or upload today's on-duty roster. This builds a rotation across the seating map — ED first, then Main Desk Station 1, then Main Desk Station 2, then the Lobby Greeters — with breaks staggered so the mandatory posts don't go dark, and gives each worker two or three distinct locations instead of one.</p>
+</header>
+
+<main>
+
+  <section class="panel controls">
+    <h2><span class="num">1</span> Load today's roster</h2>
+    <p class="sub">Paste the contents of <code>on_duty_staff.txt</code>, or upload the file directly. Format: <code class="mono">First Last, 7:00 AM - 3:00 PM</code> — one person per line.</p>
+    <textarea id="rosterInput" placeholder="On Duty Staff Members
+-------------------------------
+Maria Garcia, 7:00 AM - 3:00 PM
+Tam Nguyen, 7:00 AM - 3:00 PM
+..."></textarea>
+    <div class="row">
+      <button class="btn-primary" id="parseBtn">Submit Roster</button>
+      <label class="file-label">
+        Upload .txt file
+        <input type="file" id="fileInput" accept=".txt">
+      </label>
+      <button class="btn-ghost" id="sampleBtn">Load sample roster</button>
+      <span id="sampleNote"></span>
+    </div>
+    <div id="errorBanner" class="hidden"></div>
+  </section>
+
+  <section class="panel">
+    <details id="settingsDetails">
+      <summary style="cursor:pointer; font-weight:700; font-size:14px; list-style:none;">⚙ Break rule settings <span style="font-weight:500; color:var(--ink-soft); font-size:12.5px;">(optional — only open this if your break policy changes)</span></summary>
+      <p class="sub" style="margin-top:10px;">These control how the tool earns break time. Changes apply the next time you click <strong>Generate</strong> or <strong>Regenerate</strong> — nothing here touches code.</p>
+      <div class="settings-grid">
+        <label>Under 4 hours worked → no break</label>
+        <label>4 to under 6 hours → <input type="number" id="cfgTier15" value="15" min="0" step="5"> minute break</label>
+        <label>6 to under 8 hours → <input type="number" id="cfgTier30" value="30" min="0" step="5"> minute break</label>
+        <label>8 hours or more → <input type="number" id="cfgTier60" value="60" min="0" step="5"> minute base break</label>
+        <label>Beyond 8 hours, add <input type="number" id="cfgExtraMin" value="15" min="0" step="5"> minutes for every <input type="number" id="cfgExtraHours" value="2" min="0.5" step="0.5"> extra hours worked</label>
+        <label>Split into two breaks for shifts of <input type="number" id="cfgSplitThreshold" value="12" min="1" step="0.5"> hours or longer</label>
+        <label>When split, cap the first break at <input type="number" id="cfgSplitCap" value="60" min="5" step="5"> minutes (the rest becomes the second break)</label>
+      </div>
+      <div class="row">
+        <button class="btn-secondary" id="applySettingsBtn">Apply settings</button>
+        <button class="btn-ghost" id="resetSettingsBtn">Reset to defaults</button>
+        <span id="settingsNote" style="font-size:12.5px; color:var(--good); font-weight:600;"></span>
+      </div>
+    </details>
+  </section>
+
+  <section class="panel">
+    <details id="labelSettingsDetails">
+      <summary style="cursor:pointer; font-weight:700; font-size:14px; list-style:none;">⚙ Greeter post names <span style="font-weight:500; color:var(--ink-soft); font-size:12.5px;">(optional — rename these 3 posts if they change)</span></summary>
+      <p class="sub" style="margin-top:10px;">These 3 posts aren't a fixed location like ED or Main Desk — rename them here if needed (e.g. a new kiosk gets installed). Changes apply immediately to the board, summary, and sheet if a schedule is already showing.</p>
+      <div class="settings-grid">
+        <label>Post 1 <input type="text" id="lblGreeter1" value="Greeter 1"></label>
+        <label>Post 2 <input type="text" id="lblGreeter2" value="Greeter 2"></label>
+        <label>Post 3 <input type="text" id="lblGreeter3" value="Greeter 3"></label>
+      </div>
+      <div class="row">
+        <button class="btn-secondary" id="applyLabelsBtn">Apply names</button>
+        <button class="btn-ghost" id="resetLabelsBtn">Reset to defaults</button>
+        <span id="labelSettingsNote" style="font-size:12.5px; color:var(--good); font-weight:600;"></span>
+      </div>
+    </details>
+  </section>
+
+  <section class="panel hidden" id="rosterPanel">
+    <h2><span class="num">2</span> Confirm who's actually on duty</h2>
+    <p class="sub">Uncheck anyone who calls out — no need to retype the roster. Then generate the seating chart.</p>
+    <table>
+      <thead><tr><th>On duty</th><th>Name</th><th>Start</th><th>Finish</th><th>Hours</th></tr></thead>
+      <tbody id="rosterTableBody"></tbody>
+    </table>
+    <div class="row">
+      <button class="btn-primary" id="generateBtn">Generate seating schedule</button>
+      <button class="btn-secondary hidden" id="shuffleBtn">🔀 Regenerate (shuffle)</button>
+      <button class="btn-secondary hidden" id="copyBtn">Copy schedule as text</button>
+      <button class="btn-secondary hidden" id="printBtn">Print / Save PDF</button>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="warningsPanel">
+    <h2><span class="num">3</span> Coverage check</h2>
+    <div id="warningsBody"></div>
+  </section>
+
+  <section class="panel hidden" id="boardPanel">
+    <h2><span class="num">4</span> Seating board</h2>
+    <p class="sub">Each row is a post, in priority order. Each column is a stable time block — the assignment only changes when someone arrives, leaves, takes a break, or hits a planned rotation.</p>
+    <div class="board-wrap"><table class="board" id="boardTable"></table></div>
+    <div class="legend">
+      <span><i style="background:var(--tier1-bg); border:1px solid var(--tier1);"></i>ED — mandatory</span>
+      <span><i style="background:var(--tier2-bg); border:1px solid var(--tier2);"></i>Main Desk 1 — top priority</span>
+      <span><i style="background:var(--tier3-bg); border:1px solid var(--tier3);"></i>Main Desk 2 — optional</span>
+      <span><i style="background:var(--tier4-bg); border:1px solid var(--tier4);"></i>Lobby — optional</span>
+      <span><i style="background:var(--crit-bg); border:1px solid var(--crit);"></i>Unstaffed gap</span>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="empPanel">
+    <h2><span class="num">5</span> Per-person summary</h2>
+    <p class="sub">Where each worker sits over their shift, and when their break falls.</p>
+    <div id="empBody"></div>
+  </section>
+
+  <section class="panel hidden" id="sheetPanel">
+    <h2><span class="num">6</span> Daily assignment sheet</h2>
+    <p class="sub">The staff-facing printout, in the format that gets posted. Fill in the header, then copy or print.</p>
+    <div class="sheet-fields">
+      <label>Date <input type="date" id="sheetDate"></label>
+      <label>Team lead / department <input type="text" id="sheetDept" value="Dept. of Concierge Services"></label>
+      <label>Reviewed by (supervisor) <input type="text" id="sheetSupervisor" placeholder="Supv. First Last"></label>
+    </div>
+    <div id="sheetPreview" class="sheet-doc"></div>
+    <div class="row">
+      <button class="btn-secondary" id="copySheetBtn">Copy assignment sheet</button>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Runs entirely in this browser tab — nothing is uploaded anywhere. Config thresholds (when a shift earns 2 vs 3 locations, the 12-hour break-split cutoff) are set at the top of the script if you need to tune them for your unit.
+</footer>
+
+<script>
+/* ============================================================
+   CONCIERGE SEATING SCHEDULER — engine
+   ============================================================ */
+
+// ============================================================
+// CONCIERGE SEATING SCHEDULER — core engine
+// ============================================================
+
+const CONFIG = {
+  MIN_HOURS_FOR_2_LOCATIONS: 3,
+  MIN_HOURS_FOR_3_LOCATIONS: 9,
+  BREAK_SPLIT_THRESHOLD_HOURS: 12,   // shifts this long or longer get TWO breaks
+  BREAK_SPLIT_CAP_MINUTES: 60,       // first of the two breaks is capped here
+  BREAK_8H_BASE_MINUTES: 60,         // base break for shifts of 8+ hours
+  BREAK_EXTRA_RATE_MINUTES: 15,      // beyond 8 hours, extra break time accrues at this rate...
+  BREAK_EXTRA_RATE_HOURS: 2,         // ...per this many extra hours worked
+};
+
+// Meal break tiers (0-3h none, 4-5h 15m, 6-7h 30m, 8h+ 60m base).
+// Hours at/above 8 use CONFIG.BREAK_8H_BASE_MINUTES plus extra accrued
+// via CONFIG.BREAK_EXTRA_RATE_*, which is what produces 90m at 12h and
+// 120m at 16h with the defaults.
+const BREAK_TIERS = [
+  { belowHours: 4, minutes: 0 },
+  { belowHours: 6, minutes: 15 },
+  { belowHours: 8, minutes: 30 },
+];
+
+function totalBreakMinutes(hours) {
+  for (const tier of BREAK_TIERS) if (hours < tier.belowHours) return tier.minutes;
+  const extra = Math.max(0, hours - 8);
+  return CONFIG.BREAK_8H_BASE_MINUTES + Math.floor(extra / CONFIG.BREAK_EXTRA_RATE_HOURS) * CONFIG.BREAK_EXTRA_RATE_MINUTES;
+}
+
+// Fill/priority order. Main 1 is THE mandatory anchor — if only one
+// person is on duty, they go here, not ED. ED is next (filled whenever a
+// 2nd person is available). Main 2 completes Main Desk Station 1 after
+// that. Everything else is genuinely optional.
+const POSTS = [
+  { id: "MAIN1",  label: "Main 1",   tier: 1, tierLabel: "Mandatory — Main Desk anchor, never empty" },
+  { id: "ED",     label: "ED",       tier: 2, tierLabel: "Second priority — filled whenever possible" },
+  { id: "MAIN2",  label: "Main 2",   tier: 3, tierLabel: "Completes Main Desk Station 1" },
+  { id: "MAIN3",  label: "Main 3",   tier: 4, tierLabel: "Main Desk Station 2 — optional" },
+  { id: "MAIN4",  label: "Main 4",   tier: 4, tierLabel: "Main Desk Station 2 — optional" },
+  { id: "LOBBY1", label: "Greeter 1", tier: 5, tierLabel: "Lobby Greeter — optional" },
+  { id: "LOBBY2", label: "Greeter 2", tier: 5, tierLabel: "Lobby Greeter — optional" },
+  { id: "LOBBY3", label: "Greeter 3", tier: 5, tierLabel: "Lobby Greeter — optional" },
+];
+
+// ---------- roster parsing ----------
+// Expected line: "<First> <Last>, <start> - <finish>"
+
+const EXPECTED_FORMAT = "<First> <Last>, <start time> - <finish time>";
+const EXPECTED_EXAMPLE = "Maria Garcia, 7:00 AM - 3:00 PM";
+
+const LINE_RE = /^(\S+)\s+(.+?),\s*(\d{1,2}:\d{2}\s*[AaPp][Mm])\s*-\s*(\d{1,2}:\d{2}\s*[AaPp][Mm])\s*$/;
+const SKIP_RE = /^(-{3,}|on\s+duty\s+staff\s+members)$/i;
+
+function parseTimeToMinutes(raw) {
+  const m = raw.trim().match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
+  if (!m) return null;
+  let [, h, mm, ap] = m;
+  h = parseInt(h, 10); mm = parseInt(mm, 10);
+  if (h < 1 || h > 12 || mm < 0 || mm > 59) return null;
+  ap = ap.toUpperCase();
+  if (h === 12) h = 0;
+  let minutes = h * 60 + mm;
+  if (ap === "PM") minutes += 12 * 60;
+  return minutes;
+}
+
+function makeError(code, message, lineNumber, lineText) {
+  return { code, message, lineNumber, lineText, expectedFormat: EXPECTED_FORMAT, expectedExample: EXPECTED_EXAMPLE };
+}
+
+function parseRoster(text) {
+  const lines = text.split(/\r?\n/);
+  const staff = [];
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const line = raw.trim();
+    if (line === "" || SKIP_RE.test(line)) continue;
+    const m = line.match(LINE_RE);
+    if (!m) return { staff: [], error: makeError("ERR-101", "This line doesn't match the expected roster format.", i + 1, raw) };
+    const [, first, last, startRaw, finishRaw] = m;
+    const start = parseTimeToMinutes(startRaw);
+    const finish = parseTimeToMinutes(finishRaw);
+    if (start === null || finish === null) return { staff: [], error: makeError("ERR-102", "Time value out of range — hour must be 1-12, minute 00-59, with AM/PM.", i + 1, raw) };
+    let finishAbs = finish;
+    if (finishAbs <= start) finishAbs += 24 * 60; // valid: e.g. a double shift 3PM day1 - 7AM day2
+    if (finishAbs === start) return { staff: [], error: makeError("ERR-103", "Zero-length shift — start time equals finish time.", i + 1, raw) };
+    staff.push({
+      id: `${last.toLowerCase()}_${first.toLowerCase()}_${i}`,
+      first: capitalizeWords(first), last: capitalizeWords(last),
+      start, finish: finishAbs,
+      startLabel: formatMinutes(start), finishLabel: formatMinutesLabeled(finishAbs),
+      active: true,
+    });
+  }
+  if (staff.length === 0) return { staff: [], error: makeError("ERR-104", "No valid staff entries found in the file.", null, "") };
+  return { staff, error: null };
+}
+
+function capitalizeWords(s) { return s.trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" "); }
+
+function formatMinutes(mins) {
+  let m = ((mins % 1440) + 1440) % 1440;
+  let h = Math.floor(m / 60); const mm = m % 60;
+  const ap = h >= 12 ? "PM" : "AM"; h = h % 12; if (h === 0) h = 12;
+  return `${h}:${String(mm).padStart(2, "0")} ${ap}`;
+}
+
+function formatMinutesLabeled(mins, short) {
+  const label = formatMinutes(mins);
+  if (mins >= 1440) return label + (short ? " +1d" : " (next day)");
+  return label;
+}
+
+// ---------- break placement ----------
+// Break START times always land on a clean whole hour; the return time
+// (start + duration) can fall wherever it falls.
+//
+// For the seven standard 8-hour shifts, breaks are placed inside a
+// published preferred window (keyed by the shift's clock start time).
+// Everything else — overnight 11PM-7AM, custom start times, double
+// shifts — falls back to a geometric rule: center the first break on the
+// shift's own midpoint (rounded to the hour), then stagger the rest of
+// the cohort in 1-hour steps around that center. This fallback happens
+// to reproduce the confirmed overnight 2-person (3am/4am) and 3-person
+// (2am/3am/4am) patterns exactly, since 11PM-7AM's midpoint is 3am.
+const PREFERRED_WINDOWS = {
+  420: { pStart: 660, pEnd: 780 },   // 7am-3pm  -> 11am-1pm
+  540: { pStart: 780, pEnd: 840 },   // 9am-5pm  -> 1pm-2pm
+  600: { pStart: 840, pEnd: 900 },   // 10am-6pm -> 2pm-3pm
+  660: { pStart: 900, pEnd: 960 },   // 11am-7pm -> 3pm-4pm
+  720: { pStart: 960, pEnd: 1020 },  // 12pm-8pm -> 4pm-5pm
+  780: { pStart: 1020, pEnd: 1080 }, // 1pm-9pm  -> 5pm-6pm
+  900: { pStart: 1080, pEnd: 1200 }, // 3pm-11pm -> 6pm-8pm
+};
+
+function windowSlots(pStart, pEnd) {
+  const slots = [];
+  for (let t = pStart; t <= pEnd; t += 60) slots.push(t);
+  return slots;
+}
+
+// extend outward from a window's slot list, alternating below/above, for
+// cohorts bigger than the window itself — keeps everyone as close to the
+// published window as possible instead of bunching at one edge.
+function extendSlots(slots, count, lo, hi) {
+  const out = [...slots];
+  let below = slots[0] - 60, above = slots[slots.length - 1] + 60, goLow = true;
+  while (out.length < count) {
+    if (goLow && below >= lo) { out.unshift(below); below -= 60; }
+    else if (!goLow && above <= hi) { out.push(above); above += 60; }
+    else if (below >= lo) { out.unshift(below); below -= 60; }
+    else if (above <= hi) { out.push(above); above += 60; }
+    else break; // shift too short to fit more slots; caller clamps
+    goLow = !goLow;
+  }
+  return out;
+}
+
+function snapToHour(t, lo, hi) {
+  let v = Math.round(t / 60) * 60;
+  if (v < lo) v = Math.ceil(lo / 60) * 60;
+  if (v > hi) v = Math.floor(hi / 60) * 60;
+  if (v < lo) v = lo; // shift too short for any whole-hour mark — best effort
+  return v;
+}
+
+function placeBreakStart(worker, len, cohortIndex, cohortSize) {
+  const lo = worker.start + 15;
+  const hi = worker.finish - 15 - len;
+  if (hi < lo) return snapToHour((worker.start + worker.finish - len) / 2, worker.start, worker.finish - len);
+
+  const key = ((worker.start % 1440) + 1440) % 1440;
+  const win = PREFERRED_WINDOWS[key];
+  if (win) {
+    const base = windowSlots(win.pStart, win.pEnd);
+    const slots = cohortSize > base.length ? extendSlots(base, cohortSize, lo, hi) : base;
+    const idx = Math.min(cohortIndex, slots.length - 1);
+    return snapToHour(slots[idx], lo, hi);
+  }
+
+  // geometric fallback: center on the shift's own midpoint, staggered
+  // in 1-hour steps across the cohort.
+  const midpoint = worker.start + (worker.finish - worker.start) / 2;
+  const midHour = Math.round(midpoint / 60) * 60;
+  const centerOffset = Math.floor((cohortSize - 1) / 2);
+  const target = midHour + (cohortIndex - centerOffset) * 60;
+  return snapToHour(target, lo, hi);
+}
+
+// cohortIndex/cohortSize stagger coworkers sharing a start/finish so they
+// don't all disappear on break at the same moment.
+function computeBreaks(worker, cohortIndex = 0, cohortSize = 1) {
+  const span = worker.finish - worker.start;
+  const hours = span / 60;
+  const totalMin = totalBreakMinutes(hours);
+  if (totalMin <= 0) return [];
+
+  if (hours >= CONFIG.BREAK_SPLIT_THRESHOLD_HOURS) {
+    const first = Math.min(CONFIG.BREAK_SPLIT_CAP_MINUTES, totalMin);
+    const second = totalMin - first;
+    // treat the two breaks as if placed by two "virtual" shifts (first
+    // third / second third of the double shift) so they still land on
+    // clean hours and stay staggered across the cohort.
+    const thirdWorker1 = { start: worker.start, finish: worker.start + Math.round(span / 3) * 2 };
+    const thirdWorker2 = { start: worker.start + Math.round(span / 3), finish: worker.finish };
+    const t1 = placeBreakStart(thirdWorker1, first, cohortIndex, cohortSize);
+    const breaks = [{ minutes: first, start: t1, end: t1 + first }];
+    if (second > 0) {
+      const t2 = placeBreakStart(thirdWorker2, second, cohortIndex, cohortSize);
+      breaks.push({ minutes: second, start: Math.max(t2, t1 + first + 60), end: 0 });
+      breaks[1].end = breaks[1].start + second;
+    }
+    return breaks;
+  }
+
+  const t = placeBreakStart(worker, totalMin, cohortIndex, cohortSize);
+  return [{ minutes: totalMin, start: t, end: t + totalMin }];
+}
+
+// ---------- rotation segmenting ----------
+
+function segmentsForHours(hours) {
+  if (hours >= CONFIG.MIN_HOURS_FOR_3_LOCATIONS) return 3;
+  if (hours >= CONFIG.MIN_HOURS_FOR_2_LOCATIONS) return 2;
+  return 1;
+}
+
+// A worker's own break-return is ALREADY a natural reassignment trigger
+// — every break they take gives them one "for free". This function only
+// adds SYNTHETIC boundaries for whatever's left of the desired segment
+// count after their breaks are counted. Without this, a long split-shift
+// worker (2 breaks) plus a 3-segment shift used to get 2 breaks + 2
+// synthetic boundaries = 4 reassignment points for a "3 locations" goal
+// — way more churn than intended.
+function rotationBoundaries(worker) {
+  const hours = (worker.finish - worker.start) / 60;
+  const segs = segmentsForHours(hours);
+  const desiredTriggers = segs - 1;
+  const numBreaks = (worker.breaks || []).length;
+  const additionalNeeded = Math.max(0, desiredTriggers - numBreaks);
+  if (additionalNeeded === 0) return [];
+
+  const span = worker.finish - worker.start;
+  const bounds = [];
+  for (let k = 1; k <= additionalNeeded; k++) {
+    let raw = worker.start + (span * k) / (additionalNeeded + 1);
+    raw = Math.round(raw / 30) * 30;
+    // nudge off any break window this lands inside, same reasoning as
+    // the break-placement collision handling elsewhere.
+    const collision = (worker.breaks || []).find((b) => raw >= b.start && raw <= b.end);
+    if (collision) raw = Math.min(collision.end + 60, worker.finish - 15);
+    bounds.push(raw);
+  }
+  return bounds;
+}
+
+// ---------- schedule builder ----------
+
+function makeRng(seed) {
+  let s = seed % 2147483647; if (s <= 0) s += 2147483646;
+  return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+}
+
+function buildSchedule(staffIn, seed) {
+  const staff = staffIn.filter((w) => w.active);
+  const rng = makeRng(seed || 1);
+
+  const cohorts = new Map();
+  staff.forEach((w) => {
+    const key = `${w.start}_${w.finish}`;
+    if (!cohorts.has(key)) cohorts.set(key, []);
+    cohorts.get(key).push(w);
+  });
+  cohorts.forEach((group) => {
+    group.sort((a, b) => (a.last + a.first).localeCompare(b.last + b.first));
+    group.forEach((w, idx) => { w.breaks = computeBreaks(w, idx, group.length); });
+    group.forEach((w) => { w.boundaries = rotationBoundaries(w); });
+  });
+  staff.forEach((w) => { w.postHistory = []; });
+
+  const pointSet = new Set();
+  staff.forEach((w) => {
+    pointSet.add(w.start); pointSet.add(w.finish);
+    w.boundaries.forEach((b) => pointSet.add(b));
+    w.breaks.forEach((b) => { pointSet.add(b.start); pointSet.add(b.end); });
+  });
+  const points = Array.from(pointSet).sort((a, b) => a - b);
+
+  const current = new Map();
+  const blocks = [];
+  // raw (unmerged) time ranges for each coverage condition — merged into
+  // contiguous ranges after the sweep finishes (see mergeRanges below)
+  const mainZeroRaw = [];   // neither Main 1 nor Main 2 staffed (should be near-impossible)
+  const mainSingleRaw = []; // only one of Main 1 / Main 2 staffed
+  const edGapRaw = [];      // ED unstaffed (expected sometimes — Main 1 outranks it)
+
+  function isOnBreak(w, t0, t1) { return w.breaks.some((b) => b.start <= t0 && b.end >= t1); }
+  function hitsBoundary(w, t) {
+    return w.breaks.some((b) => b.end === t) || w.boundaries.includes(t);
+  }
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const t0 = points[i], t1 = points[i + 1];
+    if (t1 <= t0) continue;
+
+    const onDuty = staff.filter((w) => w.start <= t0 && w.finish >= t1);
+    const eligible = onDuty.filter((w) => !isOnBreak(w, t0, t1));
+    const onBreakNow = onDuty.filter((w) => isOnBreak(w, t0, t1));
+
+    const needsAssignment = [];
+    const continuing = new Map();
+    eligible.forEach((w) => {
+      const justArrived = w.start === t0;
+      const needsReassign = justArrived || hitsBoundary(w, t0);
+      if (!needsReassign && current.has(w.id)) continuing.set(w.id, current.get(w.id));
+      else needsAssignment.push(w);
+    });
+    onBreakNow.forEach((w) => current.delete(w.id));
+
+    const filledPosts = new Set(continuing.values());
+    // Fill in straight priority order: Main 1, ED, Main 2, Main 3/4,
+    // Lobby. Critical posts get first claim on whoever's available.
+    const openPosts = POSTS.filter((p) => !filledPosts.has(p.id));
+    const CRITICAL_SET = new Set(["MAIN1", "ED", "MAIN2"]);
+    const pool = [...needsAssignment];
+    const assignment = new Map(continuing);
+    const unassigned = [];
+
+    // How much longer could this worker go before THEIR OWN next break
+    // forces a reconsideration? Deliberately ignores rotation boundaries
+    // here — those are shared by an entire cohort (same shift = same
+    // midpoint), so they tie for everyone and don't actually distinguish
+    // who should hold the anchor. Used only to decide WHO gets Main 1
+    // when multiple people are equally eligible — giving it to whoever
+    // can hold it longest before break, rather than a coin flip, is what
+    // keeps a 2-person overnight pair from randomly "anchoring" the same
+    // person for the whole shift (see doc).
+    function timeUntilOwnBreak(w, t0) {
+      const starts = w.breaks.map((b) => b.start).filter((t) => t > t0);
+      return starts.length ? Math.min(...starts) : w.finish;
+    }
+
+    for (const post of openPosts) {
+      if (pool.length === 0) break;
+      // soft preference: someone who hasn't held this exact post yet
+      // this shift, if that option exists — otherwise anyone eligible.
+      let candidates = pool.filter((w) => !w.postHistory.includes(post.id));
+      if (candidates.length === 0 && CRITICAL_SET.has(post.id)) {
+        // Nobody left in the pool is fresh for this critical post. Before
+        // forcing a repeat, see if a CONTINUING worker on a strictly
+        // lower-priority post can take it instead — freeing their post
+        // for the pool candidate. This is the one case worth the extra
+        // check: it only fires when the plain fill would otherwise glue
+        // someone to a post they've already done, with no other change
+        // to how coverage normally resolves.
+        let donor = null, donorPost = null;
+        for (const [wid, pid] of assignment.entries()) {
+          const dpost = POSTS.find((p) => p.id === pid);
+          if (dpost.tier > post.tier) { donor = wid; donorPost = pid; break; }
+        }
+        // No strictly-lower donor exists. If THIS post is ED, also allow
+        // swapping laterally with whoever holds Main 1 — coverage-neutral
+        // (both critical roles stay filled, just by different people),
+        // so it's not the same risk as downgrading Main 1 to serve an
+        // optional post. This is what lets a 3rd overnight worker rotate
+        // through ED even when the only other continuing person is on
+        // the anchor.
+        if (!donor && post.id === "ED") {
+          const main1Entry = [...assignment.entries()].find(([, p]) => p === "MAIN1");
+          if (main1Entry) { donor = main1Entry[0]; donorPost = "MAIN1"; }
+        }
+        if (donor) {
+          assignment.delete(donor);
+          assignment.set(donor, post.id);
+          const pick = pool[Math.floor(rng() * pool.length)];
+          assignment.set(pick.id, donorPost);
+          pool.splice(pool.indexOf(pick), 1);
+          continue;
+        }
+      }
+      if (candidates.length === 0) candidates = pool;
+      let pick;
+      if (post.id === "MAIN1" && candidates.length > 1) {
+        const bestTime = Math.max(...candidates.map((w) => timeUntilOwnBreak(w, t0)));
+        const longest = candidates.filter((w) => timeUntilOwnBreak(w, t0) === bestTime);
+        pick = longest[Math.floor(rng() * longest.length)];
+      } else {
+        pick = candidates[Math.floor(rng() * candidates.length)];
+      }
+      assignment.set(pick.id, post.id);
+      pool.splice(pool.indexOf(pick), 1);
+    }
+    pool.forEach((w) => unassigned.push(w.id));
+
+    // --- backfill safety net ---
+    // Priority-order fill above already covers Main 1 / ED / Main 2
+    // first whenever anyone's available, so this should rarely trigger —
+    // it only catches the case where a critical post is open but nobody
+    // was left in the pool to take it because everyone eligible for it
+    // already got continuing-assigned elsewhere.
+    const CRITICAL = ["MAIN1", "ED", "MAIN2"]; // Main 1 must never be empty; ED next; Main 2 after that
+    for (const critId of CRITICAL) {
+      if ([...assignment.values()].includes(critId)) continue;
+      const targetTier = POSTS.find((p) => p.id === critId).tier;
+      let donor = null, donorPost = null;
+      const freeId = unassigned.find((id) => eligible.some((w) => w.id === id));
+      if (freeId) { donor = freeId; }
+      else {
+        let worstTier = targetTier;
+        for (const [wid, pid] of assignment.entries()) {
+          const post = POSTS.find((p) => p.id === pid);
+          if (post.tier > worstTier) { worstTier = post.tier; donor = wid; donorPost = pid; }
+        }
+      }
+      if (donor) {
+        if (donorPost) assignment.delete(donor); else unassigned.splice(unassigned.indexOf(donor), 1);
+        assignment.set(donor, critId);
+      }
+    }
+
+    assignment.forEach((post, id) => {
+      const w = staff.find((s) => s.id === id);
+      if (w && !w.postHistory.includes(post)) w.postHistory.push(post);
+    });
+
+    current.clear();
+    assignment.forEach((v, k) => current.set(k, v));
+
+    const edFilled = [...assignment.values()].includes("ED");
+    const main1Filled = [...assignment.values()].includes("MAIN1");
+    const main2Filled = [...assignment.values()].includes("MAIN2");
+    const mainCount = (main1Filled ? 1 : 0) + (main2Filled ? 1 : 0);
+    if (onDuty.length > 0 && !edFilled) edGapRaw.push({ start: t0, end: t1 });
+    if (onDuty.length > 0 && mainCount === 0) mainZeroRaw.push({ start: t0, end: t1 });
+    else if (mainCount === 1) mainSingleRaw.push({ start: t0, end: t1 });
+
+    blocks.push({ start: t0, end: t1, assignment: new Map(assignment), onBreak: onBreakNow.map((w) => w.id), unassigned });
+  }
+
+  const merged = [];
+  for (const b of blocks) {
+    const last = merged[merged.length - 1];
+    if (last && sameState(last, b)) last.end = b.end; else merged.push({ ...b });
+  }
+  const spansMultipleDays = points.length > 0 && points[points.length - 1] >= 1440;
+
+  const mainZeroRanges = mergeRanges(mainZeroRaw);
+  const mainSingleRanges = mergeRanges(mainSingleRaw);
+  const edGapRanges = mergeRanges(edGapRaw);
+
+  // Section 3 (Coverage check) — one list item PER range, not merged into
+  // a single comma-joined line, so a manager can scan/count gaps at a
+  // glance. mainSingle stays notice/amber ("cutting it close" but Main 1
+  // itself is never empty); mainZero and edGap are both critical/red —
+  // ED coverage is treated as a crucial area worth flagging strongly,
+  // even though Main 1 outranks it in the fill priority.
+  const warnings = [];
+  mainZeroRanges.forEach((r) => {
+    warnings.push({ level: "critical", text: `Main Desk Station 1 had NO coverage: ${formatRangeList([r])}` });
+  });
+  mainSingleRanges.forEach((r) => {
+    warnings.push({ level: "notice", text: `Main Desk Station 1 running one-deep: ${formatRangeList([r])}` });
+  });
+  edGapRanges.forEach((r) => {
+    warnings.push({ level: "critical", text: `ED had no coverage: ${formatRangeList([r])}` });
+  });
+
+  // Daily assignment sheet footer — the same one-member condition, kept
+  // as a single combined message (matching the requested "*** One
+  // Member... ***" format), and amber to match its notice-level styling
+  // in the Coverage check panel above.
+  const oneMemberNote = mainSingleRanges.length
+    ? `*** One Member at Main Desk from ${formatRangeList(mainSingleRanges)} ***`
+    : null;
+
+  return { blocks: merged, warnings, oneMemberNote, staff, spansMultipleDays };
+}
+
+// merges contiguous/adjacent raw intervals (same condition, back-to-back
+// from the sweep) into the fewest ranges
+function mergeRanges(raw) {
+  const out = [];
+  for (const r of raw) {
+    const last = out[out.length - 1];
+    if (last && last.end === r.start) last.end = r.end; else out.push({ ...r });
+  }
+  return out;
+}
+
+function formatRangeList(ranges) {
+  return ranges.map((r) => `${formatMinutesLabeled(r.start, true)} – ${formatMinutesLabeled(r.end, true)}`).join(", ");
+}
+
+function sameState(a, b) {
+  if (a.onBreak.join(",") !== b.onBreak.join(",")) return false;
+  if (a.unassigned.join(",") !== b.unassigned.join(",")) return false;
+  if (a.assignment.size !== b.assignment.size) return false;
+  for (const [k, v] of a.assignment) if (b.assignment.get(k) !== v) return false;
+  return true;
+}
+
+function buildAssignmentSequence(workerId, blocks) {
+  const seq = [];
+  let lastPost = null;
+  for (const b of blocks) {
+    if (b.assignment.has(workerId)) {
+      const post = b.assignment.get(workerId);
+      if (seq.length === 0) seq.push({ post, time: b.start, first: true });
+      else if (post !== lastPost) seq.push({ post, time: b.start, first: false });
+      lastPost = post;
+    }
+  }
+  return seq;
+}
+
+// Ascending by first break start time; staff with no break (very short
+// shifts) sort to the end.
+function sortByBreakTime(staffList) {
+  return [...staffList].sort((a, b) => {
+    const ta = a.breaks[0] ? a.breaks[0].start : Infinity;
+    const tb = b.breaks[0] ? b.breaks[0].start : Infinity;
+    return ta - tb;
+  });
+}
+
+
+/* ============================================================
+   UI wiring
+   ============================================================ */
+
+const SAMPLE = `On Duty Staff Members
+-------------------------------
+Alicia Delgado, 7:00 AM - 3:00 PM
+Marcus Chen, 7:00 AM - 3:00 PM
+Priya Anand, 7:00 AM - 3:00 PM
+Devon Okafor, 9:00 AM - 5:00 PM
+Whitney Park, 11:00 AM - 7:00 PM
+Ismael Cruz, 1:00 PM - 9:00 PM
+Nadia Boone, 3:00 PM - 11:00 PM
+Leon Mercer, 3:00 PM - 11:00 PM
+Fatima Tran, 3:00 PM - 11:00 PM
+Owen Castillo, 11:00 PM - 7:00 AM
+Renee Alvarez, 11:00 PM - 7:00 AM`;
+
+let currentStaff = [];
+let currentSeed = 7;
+
+// Manual override for the 3 Greeter/Lobby post labels — these aren't a
+// fixed physical location like ED or Main Desk, so a manager may want to
+// rename them (e.g. if a new kiosk gets installed). Empty by default;
+// falls back to the POSTS array's built-in label. Purely a display
+// concern — never touches post IDs or scheduling logic.
+let postLabelOverrides = {};
+
+function boardLabelFor(postId) {
+  return postLabelOverrides[postId] || POSTS.find((p) => p.id === postId).label;
+}
+// The Daily Assignment Sheet historically collapses all 3 Greeter slots
+// to the single unnumbered word "Greeter" (matching the posted-sheet
+// convention). A custom override is specific enough to show as-is.
+function sheetLabelFor(postId) {
+  if (postLabelOverrides[postId]) return postLabelOverrides[postId];
+  if (postId === "LOBBY1" || postId === "LOBBY2" || postId === "LOBBY3") return "Greeter";
+  return POSTS.find((p) => p.id === postId).label;
+}
+
+document.getElementById("sheetDate").valueAsDate = new Date();
+
+const rosterInput = document.getElementById("rosterInput");
+const errorBanner = document.getElementById("errorBanner");
+const rosterPanel = document.getElementById("rosterPanel");
+const rosterTableBody = document.getElementById("rosterTableBody");
+const warningsPanel = document.getElementById("warningsPanel");
+const warningsBody = document.getElementById("warningsBody");
+const boardPanel = document.getElementById("boardPanel");
+const boardTable = document.getElementById("boardTable");
+const empPanel = document.getElementById("empPanel");
+const empBody = document.getElementById("empBody");
+
+document.getElementById("sampleBtn").addEventListener("click", () => {
+  rosterInput.value = SAMPLE;
+  document.getElementById("sampleNote").textContent = "Sample loaded — click Submit Roster.";
+});
+
+const SETTINGS_DEFAULTS = { cfgTier15: 15, cfgTier30: 30, cfgTier60: 60, cfgExtraMin: 15, cfgExtraHours: 2, cfgSplitThreshold: 12, cfgSplitCap: 60 };
+function applySettingsFromInputs() {
+  BREAK_TIERS[1].minutes = parseFloat(document.getElementById("cfgTier15").value) || SETTINGS_DEFAULTS.cfgTier15;
+  BREAK_TIERS[2].minutes = parseFloat(document.getElementById("cfgTier30").value) || SETTINGS_DEFAULTS.cfgTier30;
+  CONFIG.BREAK_8H_BASE_MINUTES = parseFloat(document.getElementById("cfgTier60").value) || SETTINGS_DEFAULTS.cfgTier60;
+  CONFIG.BREAK_EXTRA_RATE_MINUTES = parseFloat(document.getElementById("cfgExtraMin").value) || SETTINGS_DEFAULTS.cfgExtraMin;
+  CONFIG.BREAK_EXTRA_RATE_HOURS = parseFloat(document.getElementById("cfgExtraHours").value) || SETTINGS_DEFAULTS.cfgExtraHours;
+  CONFIG.BREAK_SPLIT_THRESHOLD_HOURS = parseFloat(document.getElementById("cfgSplitThreshold").value) || SETTINGS_DEFAULTS.cfgSplitThreshold;
+  CONFIG.BREAK_SPLIT_CAP_MINUTES = parseFloat(document.getElementById("cfgSplitCap").value) || SETTINGS_DEFAULTS.cfgSplitCap;
+}
+document.getElementById("applySettingsBtn").addEventListener("click", () => {
+  applySettingsFromInputs();
+  const note = document.getElementById("settingsNote");
+  note.textContent = "Applied — click Generate or Regenerate to use the new rules.";
+  setTimeout(() => (note.textContent = ""), 4000);
+});
+document.getElementById("resetSettingsBtn").addEventListener("click", () => {
+  Object.entries(SETTINGS_DEFAULTS).forEach(([id, val]) => (document.getElementById(id).value = val));
+  applySettingsFromInputs();
+  const note = document.getElementById("settingsNote");
+  note.textContent = "Reset to defaults.";
+  setTimeout(() => (note.textContent = ""), 4000);
+});
+
+const LABEL_DEFAULTS = { LOBBY1: "Greeter 1", LOBBY2: "Greeter 2", LOBBY3: "Greeter 3" };
+function applyLabelsFromInputs() {
+  postLabelOverrides.LOBBY1 = document.getElementById("lblGreeter1").value.trim() || LABEL_DEFAULTS.LOBBY1;
+  postLabelOverrides.LOBBY2 = document.getElementById("lblGreeter2").value.trim() || LABEL_DEFAULTS.LOBBY2;
+  postLabelOverrides.LOBBY3 = document.getElementById("lblGreeter3").value.trim() || LABEL_DEFAULTS.LOBBY3;
+  if (lastResult) { renderBoard(lastResult); renderEmployees(lastResult); renderSheet(lastResult); }
+}
+document.getElementById("applyLabelsBtn").addEventListener("click", () => {
+  applyLabelsFromInputs();
+  const note = document.getElementById("labelSettingsNote");
+  note.textContent = "Applied.";
+  setTimeout(() => (note.textContent = ""), 4000);
+});
+document.getElementById("resetLabelsBtn").addEventListener("click", () => {
+  document.getElementById("lblGreeter1").value = LABEL_DEFAULTS.LOBBY1;
+  document.getElementById("lblGreeter2").value = LABEL_DEFAULTS.LOBBY2;
+  document.getElementById("lblGreeter3").value = LABEL_DEFAULTS.LOBBY3;
+  postLabelOverrides = {};
+  if (lastResult) { renderBoard(lastResult); renderEmployees(lastResult); renderSheet(lastResult); }
+  const note = document.getElementById("labelSettingsNote");
+  note.textContent = "Reset to defaults.";
+  setTimeout(() => (note.textContent = ""), 4000);
+});
+
+document.getElementById("fileInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { rosterInput.value = reader.result; doParse(); };
+  reader.readAsText(file);
+});
+
+document.getElementById("parseBtn").addEventListener("click", doParse);
+
+function doParse() {
+  const text = rosterInput.value;
+  errorBanner.classList.add("hidden");
+  rosterPanel.classList.add("hidden");
+  warningsPanel.classList.add("hidden");
+  boardPanel.classList.add("hidden");
+  empPanel.classList.add("hidden");
+  document.getElementById("sheetPanel").classList.add("hidden");
+
+  if (!text.trim()) return;
+  const { staff, error } = parseRoster(text);
+  if (error) {
+    errorBanner.innerHTML = `<span class="code">${error.code}</span> — ${error.message}` +
+      (error.lineNumber ? `<br><span class="line">Line ${error.lineNumber}: ${escapeHtml(error.lineText)}</span>` : "") +
+      `<div style="margin-top:8px; padding-top:8px; border-top:1px solid #F0C6C3;">
+        <div style="font-weight:700;">Expected format:</div>
+        <div class="line" style="margin-top:4px;">${escapeHtml(error.expectedFormat)}</div>
+        <div style="margin-top:6px;">Example: <span class="line">${escapeHtml(error.expectedExample)}</span></div>
+      </div>`;
+    errorBanner.classList.remove("hidden");
+    return;
+  }
+  currentStaff = staff;
+  renderRosterTable();
+  rosterPanel.classList.remove("hidden");
+  rosterPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function renderRosterTable() {
+  rosterTableBody.innerHTML = "";
+  currentStaff.forEach((w) => {
+    const hours = ((w.finish - w.start) / 60).toFixed(1).replace(/\.0$/, "");
+    const tr = document.createElement("tr");
+    tr.id = "row_" + w.id;
+    tr.innerHTML = `
+      <td><input type="checkbox" ${w.active ? "checked" : ""} data-id="${w.id}" class="active-toggle"></td>
+      <td>${escapeHtml(w.first)} ${escapeHtml(w.last)}</td>
+      <td class="mono">${w.startLabel}</td>
+      <td class="mono">${w.finishLabel}</td>
+      <td class="mono">${hours}h</td>
+    `;
+    rosterTableBody.appendChild(tr);
+  });
+  rosterTableBody.querySelectorAll(".active-toggle").forEach((cb) => {
+    cb.addEventListener("change", (e) => {
+      const w = currentStaff.find((s) => s.id === e.target.dataset.id);
+      w.active = e.target.checked;
+      document.getElementById("row_" + w.id).classList.toggle("call-out-row", !w.active);
+    });
+  });
+}
+
+document.getElementById("generateBtn").addEventListener("click", () => {
+  currentSeed = 7;
+  runSchedule();
+  document.getElementById("shuffleBtn").classList.remove("hidden");
+  document.getElementById("copyBtn").classList.remove("hidden");
+  document.getElementById("printBtn").classList.remove("hidden");
+});
+
+document.getElementById("shuffleBtn").addEventListener("click", () => {
+  currentSeed = Math.floor(Math.random() * 100000) + 1;
+  runSchedule();
+});
+
+document.getElementById("printBtn").addEventListener("click", () => window.print());
+document.getElementById("copyBtn").addEventListener("click", () => {
+  const text = scheduleAsText(lastResult);
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById("copyBtn");
+    const old = btn.textContent;
+    btn.textContent = "Copied ✓";
+    setTimeout(() => (btn.textContent = old), 1400);
+  });
+});
+
+let lastResult = null;
+
+function runSchedule() {
+  const active = currentStaff.filter((w) => w.active);
+  if (active.length === 0) {
+    warningsBody.innerHTML = `<div class="warn-item"><span>Nobody is checked in as on duty — check at least one person above.</span></div>`;
+    warningsPanel.classList.remove("hidden");
+    boardPanel.classList.add("hidden");
+    empPanel.classList.add("hidden");
+    return;
+  }
+  const result = buildSchedule(currentStaff, currentSeed);
+  lastResult = result;
+  renderWarnings(result);
+  renderBoard(result);
+  renderEmployees(result);
+  renderSheet(result);
+  warningsPanel.classList.remove("hidden");
+  boardPanel.classList.remove("hidden");
+  empPanel.classList.remove("hidden");
+  document.getElementById("sheetPanel").classList.remove("hidden");
+  boardPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function renderWarnings(result) {
+  const dayNote = result.spansMultipleDays
+    ? `<p class="sub" style="margin-bottom:10px;">This roster spans more than 24 hours, so times tagged <strong>(next day)</strong> are a day after the roster's start — not the same clock time repeating.</p>`
+    : "";
+  if (result.warnings.length === 0) {
+    warningsBody.innerHTML = dayNote + `<div class="good-note">Main Desk Station 1 and ED had full coverage all day — no gaps.</div>`;
+    return;
+  }
+  const crit = result.warnings.filter((w) => w.level === "critical");
+  const notice = result.warnings.filter((w) => w.level === "notice");
+  let html = dayNote;
+  html += crit.map((w) => `<div class="warn-item"><span>${escapeHtml(w.text)}</span></div>`).join("");
+  html += notice.map((w) => `<div class="notice-item"><span>${escapeHtml(w.text)}</span></div>`).join("");
+  warningsBody.innerHTML = html;
+}
+
+function renderBoard(result) {
+  const blocks = result.blocks;
+  const staffById = {};
+  result.staff.forEach((w) => (staffById[w.id] = w));
+
+  let thead = `<thead><tr><th>Post</th>`;
+  blocks.forEach((b) => { thead += `<th>${formatMinutesLabeled(b.start, true)}<br>–${formatMinutesLabeled(b.end, true)}</th>`; });
+  thead += `</tr></thead>`;
+
+  let tbody = `<tbody>`;
+  POSTS.forEach((post) => {
+    tbody += `<tr><td class="post-cell tier${post.tier}"><span class="chip chip-tier${post.tier}">T${post.tier}</span> ${boardLabelFor(post.id)}<span class="tierlabel">${post.tierLabel}</span></td>`;
+    blocks.forEach((b) => {
+      let holderId = null;
+      for (const [wid, pid] of b.assignment.entries()) if (pid === post.id) holderId = wid;
+      if (holderId) {
+        const w = staffById[holderId];
+        tbody += `<td class="assign-cell filled-${post.tier}">${escapeHtml(w.first)}</td>`;
+      } else {
+        const isCrit = post.id === "ED" || post.id === "MAIN1" || post.id === "MAIN2";
+        tbody += `<td class="assign-cell ${isCrit ? "empty-crit" : "empty"}">${isCrit ? "—" : ""}</td>`;
+      }
+    });
+    tbody += `</tr>`;
+  });
+
+  tbody += `<tr class="break-row"><td class="post-cell" style="font-weight:600; color:var(--warn);">On break</td>`;
+  blocks.forEach((b) => {
+    const names = b.onBreak.map((id) => staffById[id].first).join(", ");
+    tbody += `<td>${names || ""}</td>`;
+  });
+  tbody += `</tr>`;
+
+  tbody += `</tbody>`;
+  boardTable.innerHTML = thead + tbody;
+}
+
+function renderEmployees(result) {
+  const blocks = result.blocks;
+  empBody.innerHTML = "";
+  result.staff.forEach((w) => {
+    const posts = [];
+    blocks.forEach((b) => { if (b.assignment.has(w.id)) { const p = b.assignment.get(w.id); if (!posts.includes(p)) posts.push(p); } });
+    const postLabels = posts.map((pid) => {
+      const post = POSTS.find((p) => p.id === pid);
+      return `<span class="chip chip-tier${post.tier}">${boardLabelFor(post.id)}</span>`;
+    }).join(" ");
+    const breakText = w.breaks.map((br) => `${br.minutes}m @ ${formatMinutesLabeled(br.start, true)}`).join(", ") || "none";
+    const div = document.createElement("div");
+    div.className = "emp-card";
+    div.innerHTML = `
+      <div>
+        <div class="name">${escapeHtml(w.first)} ${escapeHtml(w.last)}</div>
+        <div class="shift">${w.startLabel} – ${w.finishLabel}</div>
+      </div>
+      <div class="posts">${postLabels || '<span class="chip chip-tier4">no post assigned</span>'}</div>
+      <div class="breaktext">Break: ${breakText}</div>
+    `;
+    empBody.appendChild(div);
+  });
+}
+
+function scheduleAsText(result) {
+  if (!result) return "";
+  const staffById = {};
+  result.staff.forEach((w) => (staffById[w.id] = w));
+  let out = "CONCIERGE SEATING SCHEDULE\n" + "=".repeat(40) + "\n\n";
+  result.blocks.forEach((b) => {
+    out += `${formatMinutesLabeled(b.start)} - ${formatMinutesLabeled(b.end)}\n`;
+    POSTS.forEach((post) => {
+      let holderId = null;
+      for (const [wid, pid] of b.assignment.entries()) if (pid === post.id) holderId = wid;
+      const name = holderId ? `${staffById[holderId].first} ${staffById[holderId].last}` : "(unstaffed)";
+      out += `  ${boardLabelFor(post.id).padEnd(9)} ${name}\n`;
+    });
+    if (b.onBreak.length) out += `  On break: ${b.onBreak.map((id) => staffById[id].first).join(", ")}\n`;
+    out += "\n";
+  });
+  return out;
+}
+
+// (SHEET_LABELS replaced by sheetLabelFor(), defined earlier — reflects
+// live label overrides.)
+
+function formatCompact(mins) {
+  let m = ((mins % 1440) + 1440) % 1440;
+  let h = Math.floor(m / 60); const mm = m % 60;
+  const ap = h >= 12 ? "pm" : "am"; h = h % 12; if (h === 0) h = 12;
+  const base = mm === 0 ? `${h}${ap}` : `${h}:${String(mm).padStart(2, "0")}${ap}`;
+  return mins >= 1440 ? base + " (+1d)" : base;
+}
+
+// Shows every break a worker has (not just the first). A 60-minute break
+// is the assumed default, so only the time is shown; any other length
+// gets its duration stated too (e.g. a split-shift's shorter 2nd break).
+function formatBreakColumn(breaks) {
+  if (!breaks.length) return "—";
+  return breaks.map((b) => {
+    const t = formatCompact(b.start);
+    return b.minutes === 60 ? t : `${b.minutes}m at ${t}`;
+  }).join(" / ");
+}
+
+function ordinal(n) {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function sheetHeaderData() {
+  const dateVal = document.getElementById("sheetDate").value;
+  const dept = document.getElementById("sheetDept").value || "Dept. of Concierge Services";
+  const supervisor = document.getElementById("sheetSupervisor").value;
+  let shortDate = "", longDate = "";
+  if (dateVal) {
+    const d = new Date(dateVal + "T00:00:00");
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    shortDate = `${d.getMonth() + 1}/${d.getDate()}`;
+    longDate = `${months[d.getMonth()]} ${ordinal(d.getDate())} – ${days[d.getDay()]}`;
+  }
+  return { shortDate, longDate, dept, supervisor };
+}
+
+function renderSheet(result) {
+  const staffById = {};
+  result.staff.forEach((w) => (staffById[w.id] = w));
+  const { shortDate, longDate, dept, supervisor } = sheetHeaderData();
+
+  let rows = "";
+  sortByBreakTime(result.staff).forEach((w) => {
+    const seq = buildAssignmentSequence(w.id, result.blocks);
+    const assignText = seq.map((s, i) => (i === 0 ? sheetLabelFor(s.post) : `${sheetLabelFor(s.post)} at ${formatCompact(s.time)}`)).join(" / ") || "(no post assigned)";
+    const breakStart = formatBreakColumn(w.breaks);
+    rows += `<tr>
+      <td class="sname">${escapeHtml(w.first)}</td>
+      <td class="sshift">${formatCompact(w.start)} – ${formatCompact(w.finish)}</td>
+      <td class="sbreak">${breakStart}</td>
+      <td>${escapeHtml(assignText)}</td>
+    </tr>`;
+  });
+
+  document.getElementById("sheetPreview").innerHTML = `
+    <p class="sheet-title">Daily Assignments${shortDate ? " - " + shortDate : ""}</p>
+    <p class="sheet-meta"><b>Team Lead:</b> ${escapeHtml(dept)}</p>
+    <p class="sheet-meta"><b>Day/Date:</b> ${escapeHtml(longDate)}${supervisor ? `&nbsp;&nbsp;&nbsp; <b>Reviewed by</b> Supv. ${escapeHtml(supervisor)}` : ""}</p>
+    <table class="sheet-table">
+      <thead><tr><th>Name</th><th>Shift</th><th>Break</th><th>Assignment</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${result.oneMemberNote ? `<p class="sheet-footnote">${escapeHtml(result.oneMemberNote)}</p>` : ""}
+  `;
+}
+
+["sheetDate", "sheetDept", "sheetSupervisor"].forEach((id) => {
+  document.getElementById(id).addEventListener("input", () => { if (lastResult) renderSheet(lastResult); });
+});
+
+document.getElementById("copySheetBtn").addEventListener("click", () => {
+  if (!lastResult) return;
+  const { shortDate, longDate, dept, supervisor } = sheetHeaderData();
+  let out = `Daily Assignments${shortDate ? " - " + shortDate : ""}\n\n`;
+  out += `Team Lead:\t${dept}\n\n`;
+  out += `Day/Date: ${longDate}\t${supervisor ? "Reviewed by Supv. " + supervisor : ""}\n\n`;
+  sortByBreakTime(lastResult.staff).forEach((w) => {
+    const seq = buildAssignmentSequence(w.id, lastResult.blocks);
+    const assignText = seq.map((s, i) => (i === 0 ? sheetLabelFor(s.post) : `${sheetLabelFor(s.post)} at ${formatCompact(s.time)}`)).join(" / ") || "(no post assigned)";
+    const breakStart = formatBreakColumn(w.breaks);
+    out += `${w.first}\t${formatCompact(w.start)} – ${formatCompact(w.finish)}\t${breakStart}\t${assignText}\n`;
+  });
+  if (lastResult.oneMemberNote) out += `\n${lastResult.oneMemberNote}\n`;
+  navigator.clipboard.writeText(out).then(() => {
+    const btn = document.getElementById("copySheetBtn");
+    const old = btn.textContent;
+    btn.textContent = "Copied ✓";
+    setTimeout(() => (btn.textContent = old), 1400);
+  });
+});
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+</script>
+</body>
+</html>
